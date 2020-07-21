@@ -35,7 +35,7 @@ pub fn new() -> CPU{
 
 
 #[inline]
-pub fn coords_to_index(x: u8, y: u8) -> usize { x as usize * GFX_COLS + y as usize }
+pub fn coords_to_index(x: u8, y: u8) -> usize { (y as usize * GFX_COLS) + x as usize }
 #[inline]
 pub fn index_to_coords(i: u16) -> (usize, usize) { 
     (
@@ -321,7 +321,13 @@ impl CPU {
             // than when trying to deal with the branch.
             // ...maybe will actually get around to testing that...
             for i in 0..8 {
-                self.gfx[(gfx_i + i) % GFX_ROWS * GFX_COLS ] = sprite_row[i];
+                let (mut x, mut y) = index_to_coords(gfx_i as u16);
+                let overflowed = x.overflowing_add(i);
+                x = overflowed.0;
+                y += overflowed.1 as usize;
+                let wrapped_i = coords_to_index(x as u8, y as u8);
+                println!("X,Y => i = ({},{}) => {}", x, y, wrapped_i);
+                self.gfx[wrapped_i] = sprite_row[i];
             }
         }
         self.regs[15] = ret as u8;
