@@ -35,7 +35,16 @@ pub fn new() -> CPU{
 
 
 #[inline]
-fn coords_to_index(x: u8, y: u8) -> usize { x as usize * GFX_COLS + y as usize }
+pub fn coords_to_index(x: u8, y: u8) -> usize { x as usize * GFX_COLS + y as usize }
+#[inline]
+pub fn index_to_coords(i: u16) -> (usize, usize) { 
+    (
+        i as usize % GFX_COLS as usize,       //x, 0-indexed
+        (i as usize / GFX_COLS as usize), //y, 0-indexed
+    )
+
+}
+
 
 pub struct CPU {
     opcode: u16, // big-endian
@@ -100,15 +109,16 @@ impl CPU {
         self.opcode =
             (self.mem[self.pc as usize] as u16) << 8 | (self.mem[(self.pc + 1) as usize] as u16);
         self.pc += 2;
+        //println!("opcode: {:#06X} ( {:#018b})", self.opcode, self.opcode);
     }
 
     // helper functions that should help with readability
     // could have been macros, but this will type check
 
     #[inline]
-    fn nibble2_usize(&self) -> usize { (self.opcode & 0xF00) as usize }
+    fn nibble2_usize(&self) -> usize { ((self.opcode & 0xF00) >> 8) as usize }
     #[inline]
-    fn nibble3_usize(&self) -> usize { (self.opcode & 0xF0) as usize }
+    fn nibble3_usize(&self) -> usize { ((self.opcode & 0xF0) >> 4) as usize }
     #[inline]
     fn nibble2_reg(&mut self) -> &mut u8 { &mut self.regs[self.nibble2_usize()] as &mut u8 }
     #[inline]
@@ -123,14 +133,23 @@ impl CPU {
     fn fetch_sprite_row(&self, i: usize) -> [bool; 8] {
         // returns a byte at self.mem[i] as an array of bools
         [
-            (self.mem[i] & 0b10000000) >> 7 == 0b10000000,
-            (self.mem[i] & 0b01000000) >> 6 == 0b01000000,
-            (self.mem[i] & 0b00100000) >> 5 == 0b00100000,
-            (self.mem[i] & 0b00010000) >> 4 == 0b00010000,
-            (self.mem[i] & 0b00001000) >> 3 == 0b00001000,
-            (self.mem[i] & 0b00000100) >> 2 == 0b00000100,
-            (self.mem[i] & 0b00000010) >> 1 == 0b00000010,
-             self.mem[i] & 0b00000001 == 0b00000001,
+//            (self.mem[i] & 0b10000000) >> 7 == 0b10000000,
+//            (self.mem[i] & 0b01000000) >> 6 == 0b01000000,
+//            (self.mem[i] & 0b00100000) >> 5 == 0b00100000,
+//            (self.mem[i] & 0b00010000) >> 4 == 0b00010000,
+//            (self.mem[i] & 0b00001000) >> 3 == 0b00001000,
+//            (self.mem[i] & 0b00000100) >> 2 == 0b00000100,
+//            (self.mem[i] & 0b00000010) >> 1 == 0b00000010,
+//             self.mem[i] & 0b00000001 == 0b00000001,
+
+            (self.mem[i] & 0b10000000) == 0b10000000,
+            (self.mem[i] & 0b01000000) == 0b01000000,
+            (self.mem[i] & 0b00100000) == 0b00100000,
+            (self.mem[i] & 0b00010000) == 0b00010000,
+            (self.mem[i] & 0b00001000) == 0b00001000,
+            (self.mem[i] & 0b00000100) == 0b00000100,
+            (self.mem[i] & 0b00000010) == 0b00000010,
+            (self.mem[i] & 0b00000001) == 0b00000001,
         ]
     }
     //
@@ -181,7 +200,10 @@ impl CPU {
     #[inline]
     fn set_immediate(&mut self) { *self.nibble2_reg() = self.lower_8_val(); } //0x6XNN
     #[inline]
-    fn add_immediate(&mut self) { *self.nibble2_reg() += self.lower_8_val(); } //0x7XNN
+    fn add_immediate(&mut self) { //0x7XNN
+        *self.nibble2_reg() =
+        self.nibble2_reg().wrapping_add(self.lower_8_val());
+    }
     #[inline]
     fn set(&mut self) { *self.nibble2_reg() = *self.nibble3_reg(); } //0x8XY0
     #[inline]
@@ -193,19 +215,16 @@ impl CPU {
     #[inline]
     fn add(&mut self) {
         //0x8XY4
-        // use u16 to not actually overflow
-        let new_val: u16 = *self.nibble2_reg() as u16 + *self.nibble3_reg() as u16;
-        self.regs[15] = (new_val > 255) as u8; //set carry/overflow
-        *self.nibble2_reg() = (new_val % 256) as u8;
+        let (val, overflow) = self.nibble2_reg().overflowing_add(*self.nibble3_reg());
+        self.regs[15] = overflow as u8;
+        *self.nibble2_reg() = val;
     }
     #[inline]
     fn sub_xy(&mut self) {
         //0x8XY5
-        // use i16 to not actually underflow
-        let new_val: i16 = *self.nibble2_reg() as i16 - *self.nibble3_reg() as i16;
-        self.regs[15] = (new_val < 0) as u8; //set borrow/underflow
-                                             // add 256 before remainder to handle underflows
-        *self.nibble2_reg() = ((new_val + 256) % 256) as u8;
+        let (val, overflow) = self.nibble2_reg().overflowing_sub(*self.nibble3_reg());
+        self.regs[15] = overflow as u8;
+        *self.nibble2_reg() = val;
     }
     #[inline]
     fn right_shift(&mut self) {
@@ -217,11 +236,9 @@ impl CPU {
     #[inline]
     fn sub_yx(&mut self) {
         //0x8XY7
-        //use i16 to not actually underflow
-        let new_val: i16 = *self.nibble3_reg() as i16 - *self.nibble2_reg() as i16;
-        self.regs[15] = (new_val < 0) as u8; //set borrow/underflow
-                                             // add 256 before remainder to handle underflows
-        *self.nibble2_reg() = ((new_val + 256) % 256) as u8;
+        let (val, overflow) = self.nibble3_reg().overflowing_sub(*self.nibble2_reg());
+        self.regs[15] = overflow as u8;
+        *self.nibble2_reg() = val;
     }
     #[inline]
     fn left_shift(&mut self) {
@@ -271,17 +288,26 @@ impl CPU {
             let sprite_row: [bool; 8] = self.fetch_sprite_row(mem_i);
             mem_i += 1; //prep for next row
             let draw_row: [bool; 8] = [
-                sprite_row[0] ^ self.gfx[gfx_i],
-                sprite_row[1] ^ self.gfx[gfx_i + 1],
-                sprite_row[2] ^ self.gfx[gfx_i + 2],
-                sprite_row[3] ^ self.gfx[gfx_i + 3],
-                sprite_row[4] ^ self.gfx[gfx_i + 4],
-                sprite_row[5] ^ self.gfx[gfx_i + 5],
-                sprite_row[6] ^ self.gfx[gfx_i + 6],
-                sprite_row[7] ^ self.gfx[gfx_i + 7],
+                sprite_row[0] ^ self.gfx[gfx_i % (GFX_ROWS * GFX_COLS)],
+                sprite_row[1] ^ self.gfx[(gfx_i + 1) % (GFX_ROWS * GFX_COLS)],
+                sprite_row[2] ^ self.gfx[(gfx_i + 2) % (GFX_ROWS * GFX_COLS)],
+                sprite_row[3] ^ self.gfx[(gfx_i + 3) % (GFX_ROWS * GFX_COLS)],
+                sprite_row[4] ^ self.gfx[(gfx_i + 4) % (GFX_ROWS * GFX_COLS)],
+                sprite_row[5] ^ self.gfx[(gfx_i + 5) % (GFX_ROWS * GFX_COLS)],
+                sprite_row[6] ^ self.gfx[(gfx_i + 6) % (GFX_ROWS * GFX_COLS)],
+                sprite_row[7] ^ self.gfx[(gfx_i + 7) % (GFX_ROWS * GFX_COLS)],
             ];
             ret = ret || draw_row != sprite_row;
-            self.gfx[gfx_i..gfx_i + 8].copy_from_slice(&draw_row);
+            // set the pixels.
+            // would look cleaner if gfx implemented as circular array,
+            // eg    self.gfx[gfx_i..gfx_i + 8].copy_from_slice(&draw_row);
+            // until then, using multiple single assignments instead of
+            // branching in the hopes that the compiler will optimize it better
+            // than when trying to deal with the branch.
+            // ...maybe will actually get around to testing that...
+            for i in 0..8 {
+                self.gfx[(gfx_i + i) % GFX_ROWS * GFX_COLS ] = sprite_row[i];
+            }
         }
         self.regs[15] = ret as u8;
     }
@@ -315,7 +341,9 @@ impl CPU {
     #[inline]
     fn set_sound(&mut self) { self.sound_timer = self.regs[*self.nibble2_reg() as usize]; } //0xFX18
     #[inline]
-    fn add_i(&mut self) { self.i += self.regs[*self.nibble2_reg() as usize] as u16; } //0xFX1E
+    fn add_i(&mut self) {
+        self.i = self.i.wrapping_add(self.regs[*self.nibble2_reg() as usize] as u16);
+    } //0xFX1E
     #[inline]
     fn get_char(&mut self) { self.i = FONT_LOC as u16 + (*self.nibble2_reg() * FONT_NUM_ROWS as u8) as u16; } //0xFX29
     #[inline]
@@ -418,7 +446,7 @@ impl CPU {
     }
 
     pub fn just_drew(&mut self) -> bool {
-        self.opcode & 0xF000 == 0xD
+        (self.opcode & 0xF000) >> 12 == 0xD
     }
 
     // temp until better method implemented
@@ -437,4 +465,6 @@ impl CPU {
     pub fn load_rom(&mut self, rom: &[u8; ROM_SIZE]) {
         self.mem[ROM_START..(ROM_START + rom.len())].copy_from_slice(rom);
     }
+
+    pub fn get_gfx(&self) -> [bool; GFX_ROWS * GFX_COLS] { self.gfx }
 }
