@@ -109,7 +109,22 @@ impl CPU {
         self.opcode =
             (self.mem[self.pc as usize] as u16) << 8 | (self.mem[(self.pc + 1) as usize] as u16);
         self.pc += 2;
-        //println!("opcode: {:#06X} ( {:#018b})", self.opcode, self.opcode);
+        
+        println!("AFTER FETCH: ");
+        println!("\tOPCODE:\t\t{:#06X} ({:#018b}) @<{:#018X}>", self.opcode, self.opcode, self.pc);
+        println!("\tSP:\t\t{}", self.sp);
+        println!("\tI:\t\t{}", self.i);
+        print!("\tREGS:\t\t");
+        for i in 0..16 {
+            print!("{}: {}  ", i, self.regs[i]);
+        }
+        println!("");
+        print!("\tSTACK:\t\t");
+        for i in 0..16 {
+            print!("{}: {}  ", i, self.stack[i]);
+        }
+        println!("");
+
     }
 
     // helper functions that should help with readability
@@ -341,9 +356,7 @@ impl CPU {
     #[inline]
     fn set_sound(&mut self) { self.sound_timer = self.regs[*self.nibble2_reg() as usize]; } //0xFX18
     #[inline]
-    fn add_i(&mut self) {
-        self.i = self.i.wrapping_add(self.regs[*self.nibble2_reg() as usize] as u16);
-    } //0xFX1E
+    fn add_i(&mut self) { self.i = self.i.wrapping_add(*self.nibble2_reg() as u16); } //0xFX1E
     #[inline]
     fn get_char(&mut self) { self.i = FONT_LOC as u16 + (*self.nibble2_reg() * FONT_NUM_ROWS as u8) as u16; } //0xFX29
     #[inline]

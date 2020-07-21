@@ -90,7 +90,7 @@ impl Emulator {
             self.cpu.perform_cycle();
             self.draw(); //TODO: Delete
             if self.cpu.just_drew() {
-                println!("just drew");
+                //println!("just drew");
                 //self.draw();
             }
             let sleep_time = Duration::from_nanos(NANOS_PER_CYCLE)
