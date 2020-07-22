@@ -22,9 +22,7 @@ fn main() {
         return;
     }
     let rom_file = args[1].to_string();
-    let mut emu = emulator::new();
+    let mut emu = emulator::Emulator::new();
     emu.run(&read_rom(rom_file));
 
-
-    print!("hello");
 }

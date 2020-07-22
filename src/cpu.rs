@@ -1,10 +1,5 @@
 use rand::Rng;
 
-//use sdl2::pixels::Color;
-//use sdl2::event::Event;
-//use sdl2::keyboard::Keycode;
-//use sdl2::render::WindowCanvas;
-//use sdl2::rect::Rect;
 //use std::time::Duration;
 
 const MEM_SIZE: usize = 0x1000;
@@ -14,25 +9,6 @@ pub const GFX_COLS: usize = 64;
 pub const GFX_ROWS: usize = 32;
 const FONT_LOC: usize = 0x50;
 const FONT_NUM_ROWS: usize = 5;
-
-pub fn new() -> CPU{
-    let mut cpu = CPU {
-        opcode: 0,
-        mem: [0u8; MEM_SIZE],
-        regs: [0; 16],
-        keys: [false; 16],
-        gfx: [false; GFX_COLS * GFX_ROWS],
-        stack: [0; 16],
-        sp: 0,
-        i: 0,
-        pc: ROM_START as u16,
-        delay_timer: 0,
-        sound_timer: 0,
-    };
-    cpu.load_font();
-    cpu
-}
-
 
 #[inline]
 pub fn coords_to_index(x: u8, y: u8) -> usize { (y as usize * GFX_COLS) + x as usize }
@@ -82,6 +58,24 @@ pub struct CPU {
 
 #[allow(dead_code)]
 impl CPU {
+    pub fn new() -> CPU {
+        let mut cpu = CPU {
+            opcode: 0,
+            mem: [0u8; MEM_SIZE],
+            regs: [0; 16],
+            keys: [false; 16],
+            gfx: [false; GFX_COLS * GFX_ROWS],
+            stack: [0; 16],
+            sp: 0,
+            i: 0,
+            pc: ROM_START as u16,
+            delay_timer: 0,
+            sound_timer: 0,
+        };
+        cpu.load_font();
+        cpu
+    }
+
     fn load_font(&mut self) {
         // 16 chars
         const CHARS: [u8; FONT_NUM_ROWS * 16] = [
@@ -104,6 +98,7 @@ impl CPU {
         ];
         self.mem[FONT_LOC..FONT_LOC + (FONT_NUM_ROWS * 16)].copy_from_slice(&CHARS);
     }
+    pub fn set_keys(&mut self, keys: [bool; 16]) { self.keys = keys; }
 
     fn fetch(&mut self) {
         self.opcode =
@@ -122,6 +117,10 @@ impl CPU {
         print!("\tSTACK:\t\t");
         for i in 0..16 {
             print!("{}: {}  ", i, self.stack[i]);
+        }
+        print!("\tKEYS:\t\t");
+        for i in 0..16 {
+            print!("{:#04X}: {}  ", i, self.keys[i] as u8);
         }
         println!("");
 
@@ -183,7 +182,10 @@ impl CPU {
         self.pc = self.stack[self.sp as usize];
     }
     #[inline]
-    fn jump(&mut self) { self.pc = self.lower_12_val(); } // 0x1NNN
+    fn jump(&mut self) {
+        println!("jumping: {} --> {}", self.pc, self.lower_12_val());
+        self.pc = self.lower_12_val(); 
+    } // 0x1NNN
     #[inline]
     fn subroutine_call(&mut self) {
         // 0x2NNN
@@ -238,7 +240,7 @@ impl CPU {
     fn sub_xy(&mut self) {
         //0x8XY5
         let (val, overflow) = self.nibble2_reg().overflowing_sub(*self.nibble3_reg());
-        self.regs[15] = overflow as u8;
+        self.regs[15] = !overflow as u8;
         *self.nibble2_reg() = val;
     }
     #[inline]
@@ -252,7 +254,7 @@ impl CPU {
     fn sub_yx(&mut self) {
         //0x8XY7
         let (val, overflow) = self.nibble3_reg().overflowing_sub(*self.nibble2_reg());
-        self.regs[15] = overflow as u8;
+        self.regs[15] = !overflow as u8;
         *self.nibble2_reg() = val;
     }
     #[inline]
@@ -281,6 +283,7 @@ impl CPU {
     }
 
     fn draw_sprite(&mut self) {
+        //std::thread::sleep(Duration::from_millis(1000));
         // opcode = DXYN
         // Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels.
         // Each row of 8 pixels is read as bit-coded starting from memory location I; I value doesn’t
@@ -322,12 +325,14 @@ impl CPU {
             // ...maybe will actually get around to testing that...
             for i in 0..8 {
                 let (mut x, mut y) = index_to_coords(gfx_i as u16);
-                let overflowed = x.overflowing_add(i);
-                x = overflowed.0;
-                y += overflowed.1 as usize;
+                let overflowed = (x + i) / 64;
+                x = (x + i) % 64;
+                y += overflowed;
                 let wrapped_i = coords_to_index(x as u8, y as u8);
-                println!("X,Y => i = ({},{}) => {}", x, y, wrapped_i);
-                self.gfx[wrapped_i] = sprite_row[i];
+                //println!("X,Y => i == ({},{}) => {}", x , y , wrapped_i);
+                if wrapped_i < GFX_COLS * GFX_ROWS { //temp fix?
+                    self.gfx[wrapped_i] = sprite_row[i];
+                }
             }
         }
         self.regs[15] = ret as u8;
@@ -349,18 +354,24 @@ impl CPU {
     #[inline]
     fn get_delay(&mut self) {
         //FX07
-        self.regs[*self.nibble2_reg() as usize] = self.delay_timer;
+        *self.nibble2_reg() = self.delay_timer;
     }
     #[inline]
     fn get_key(&mut self) {
-        //TODO
         //FX07
-        panic!("not implemented yet!");
+        self.pc -= 2; //jump back to this same instruction as (poor) way of blocking
+        for i in 0..self.keys.len() {
+            if self.keys[i] {
+                self.pc += 2; //jump to next instruction
+                *self.nibble2_reg() = i as u8;
+                break;
+            }
+        }
     }
     #[inline]
-    fn set_delay(&mut self) { self.delay_timer = self.regs[*self.nibble2_reg() as usize]; } //0xFX15
+    fn set_delay(&mut self) { self.delay_timer = *self.nibble2_reg(); } //0xFX15
     #[inline]
-    fn set_sound(&mut self) { self.sound_timer = self.regs[*self.nibble2_reg() as usize]; } //0xFX18
+    fn set_sound(&mut self) { self.sound_timer = *self.nibble2_reg(); } //0xFX18
     #[inline]
     fn add_i(&mut self) { self.i = self.i.wrapping_add(*self.nibble2_reg() as u16); } //0xFX1E
     #[inline]
@@ -392,7 +403,8 @@ impl CPU {
         match self.opcode {
             0x00E0 => self.clear_screen(),
             0x00EE => self.subroutine_return(),
-            0x0000..=0x0FFF => panic!("0x0NNN not implemented (yet?)."), //TODO: call machine code routine; check diff w/ 0x2NNN
+            //0x0000..=0x0FFF => panic!("0x0NNN not implemented (yet?)."), //TODO: call machine code routine; check diff w/ 0x2NNN
+            0x0000..=0x0FFF => self.jump(),//temp. good enough for now?
             0x1000..=0x1FFF => self.jump(),
             0x2000..=0x2FFF => self.subroutine_call(),
             0x3000..=0x3FFF => self.skip_if(),
@@ -472,10 +484,15 @@ impl CPU {
     pub fn set_key(&mut self, key: usize, state: bool) {
         self.keys[key] = state;
     }
+    fn update_timers(&mut self) {
+        self.delay_timer = self.delay_timer.saturating_sub(1);
+        self.sound_timer = self.sound_timer.saturating_sub(1);
+    }
 
     pub fn perform_cycle(&mut self) {
         self.fetch();
         self.execute(); //also decodes
+        self.update_timers();
                         //update(timers)
                         //render if drawflag set?
                         //TODO: handle pc out of bounds?
