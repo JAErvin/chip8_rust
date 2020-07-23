@@ -1,7 +1,7 @@
 use crate::cpu;
 
 use std::time::SystemTime;
-use std::{thread};
+//use std::thread;
 
 use sdl2::pixels::Color;
 use sdl2::event::Event;
@@ -48,8 +48,8 @@ fn select_key(keycode: Keycode) -> Option<usize> {
 
 pub struct Emulator {
     cpu: cpu::CPU,
-    sdl_context: sdl2::Sdl,
-    video_subsystem: sdl2::VideoSubsystem,
+    //sdl_context: sdl2::Sdl,
+    //video_subsystem: sdl2::VideoSubsystem,
     //window: sdl2::video::Window,
     canvas: WindowCanvas,
     event_pump: sdl2::EventPump,
@@ -58,20 +58,20 @@ pub struct Emulator {
 #[allow(dead_code)]
 impl Emulator {
     pub fn new() -> Emulator {
-        let mut sdl_context = sdl2::init().unwrap();
-        let mut video_subsystem = sdl_context.video().unwrap();
-        let mut window = video_subsystem.window("chip8", SCR_HEIGHT as u32, SCR_WIDTH as u32)
+        let sdl_context = sdl2::init().unwrap();
+        let video_subsystem = sdl_context.video().unwrap();
+        let window = video_subsystem.window("chip8", SCR_HEIGHT as u32, SCR_WIDTH as u32)
             .position_centered()
             .build()
             .unwrap();
-        let mut canvas: WindowCanvas = window.into_canvas()
+        let canvas: WindowCanvas = window.into_canvas()
             .build()
             .unwrap();
-        let mut event_pump = sdl_context.event_pump().unwrap();
+        let event_pump = sdl_context.event_pump().unwrap();
         Emulator{
             cpu: cpu::CPU::new(),
-            sdl_context: sdl_context,
-            video_subsystem: video_subsystem,
+            //sdl_context: sdl_context,
+            //video_subsystem: video_subsystem,
             //window: window,
             canvas: canvas,
             event_pump: event_pump,
