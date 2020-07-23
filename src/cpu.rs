@@ -186,7 +186,7 @@ impl CPU {
     }
     #[inline]
     fn jump(&mut self) {
-        println!("jumping: {} --> {}", self.pc, self.lower_12_val());
+        //println!("jumping: {} --> {}", self.pc, self.lower_12_val());
         self.pc = self.lower_12_val(); 
     } // 0x1NNN
     #[inline]
@@ -304,7 +304,7 @@ impl CPU {
             panic!("cant draw sprite... vy out of bounds");
         }
         let mut mem_i = self.i as usize; // dont modify i
-        println!("drawing @({},{}) w/ sprite at <{}>, height: {}", vx, vy, mem_i, height);
+        //println!("drawing @({},{}) w/ sprite at <{}>, height: {}", vx, vy, mem_i, height);
         for row in vy..vy + height {
             let gfx_i = coords_to_index(vx, row);
             let sprite_row: [bool; 8] = self.fetch_sprite_row(mem_i);
@@ -319,7 +319,7 @@ impl CPU {
                 sprite_row[6] ^ self.gfx[(gfx_i + 6) % (GFX_ROWS * GFX_COLS)],
                 sprite_row[7] ^ self.gfx[(gfx_i + 7) % (GFX_ROWS * GFX_COLS)],
             ];
-            println!("[{},{},{},{},{},{},{},{}]", draw_row[0], draw_row[1], draw_row[2], draw_row[3], draw_row[4], draw_row[5],draw_row[6], draw_row[7]);
+            //println!("[{},{},{},{},{},{},{},{}]", draw_row[0], draw_row[1], draw_row[2], draw_row[3], draw_row[4], draw_row[5],draw_row[6], draw_row[7]);
             //ret = ret || draw_row != sprite_row;
             if !ret {
                 for i in 0..draw_row.len() {

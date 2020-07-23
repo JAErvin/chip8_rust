@@ -10,7 +10,15 @@ use sdl2::render::WindowCanvas;
 use sdl2::rect::Rect;
 use std::time::Duration;
 
-const FPS: u64 = 600;
+//TODO: separate UI/TIMER/CPU frequencies
+//have a set 60hz for timers
+//have a target cpu frequency
+//adjust target cpu frequency based on actual
+//calculate target nanos per cycle from target cpu frequency
+//keep cpu-cycle counter for timers
+//calculate timer cpu-cycles/timer tick based off currently set target cpu frequency
+
+const FPS: u64 = 60;
 const NANOS_PER_CYCLE: u64 = 1000000000 / FPS;
 const SCR_WIDTH: usize = 768;
 const SCR_HEIGHT: usize = 1536;
@@ -131,23 +139,40 @@ impl Emulator {
 
 
     pub fn run(&mut self, rom: &[u8; cpu::ROM_SIZE]) {
+        //TODO: adjust sleep time on-the-fly based on actual fps
         self.cpu.load_rom(rom);
         self.draw(); //init
+        let mut frames = 0;
+        let mut time = SystemTime::now();
         loop {
             let cycle_start = SystemTime::now();
+            frames = (frames + 1) % 60;
+            if frames == 0 {
+                let actual = cycle_start.duration_since(time);
+                println!("time for 60 frames: {}", 
+                    match actual {
+                        Ok(t) => t.as_secs_f32(),
+                        _ => 0.0 ,
+                    });
+                time = cycle_start;
+            }
+
+
+
             if self.read_input() { return; };
             self.cpu.perform_cycle();
-            self.draw(); //TODO: Delete
             if self.cpu.just_drew() {
-                //println!("just drew");
-                //self.draw();
+                self.draw();
             }
+
+
             let sleep_time = Duration::from_nanos(NANOS_PER_CYCLE)
                 .checked_sub(SystemTime::now()
                     .duration_since(cycle_start)
                     .unwrap()
                 );
             if let Some(pos_sleep_time) = sleep_time {
+                //println!("SLEEPING: {}", pos_sleep_time.as_nanos());
                 std::thread::sleep(pos_sleep_time);
             }
             //std::thread::sleep(Duration::from_millis(2000));
