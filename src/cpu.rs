@@ -387,14 +387,14 @@ impl CPU {
     #[inline]
     fn reg_dump(&mut self) {
         //0xFX55
-        for reg_num in 0..=0xF {
+        for reg_num in 0..=self.nibble2_usize() {
             self.mem[self.i as usize + reg_num] = self.regs[reg_num];
         }
     }
     #[inline]
     fn reg_load(&mut self) {
         //0xFX65
-        for reg_num in 0..=0xF {
+        for reg_num in 0..=self.nibble2_usize() {
             self.regs[reg_num] = self.mem[self.i as usize + reg_num];
         }
     }
