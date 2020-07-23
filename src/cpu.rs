@@ -34,6 +34,7 @@ pub struct CPU {
     pc: u16,
     delay_timer: u8,
     sound_timer: u8,
+    pub ignore_keypress: bool, //hacky workaround?
     //memory layout
     //0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
     //0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
@@ -71,6 +72,7 @@ impl CPU {
             pc: ROM_START as u16,
             delay_timer: 0,
             sound_timer: 0,
+            ignore_keypress: false,
         };
         cpu.load_font();
         cpu
@@ -106,7 +108,7 @@ impl CPU {
         self.pc += 2;
         
         println!("AFTER FETCH: ");
-        println!("\tOPCODE:\t\t{:#06X} ({:#018b}) @<{:#018X}>", self.opcode, self.opcode, self.pc);
+        println!("\tOPCODE:\t\t{:#06X} ({:#018b}) @<{:#018X}>", self.opcode, self.opcode, self.pc - 2);
         println!("\tSP:\t\t{}", self.sp);
         println!("\tI:\t\t{}", self.i);
         print!("\tREGS:\t\t");
@@ -118,9 +120,10 @@ impl CPU {
         for i in 0..16 {
             print!("{}: {}  ", i, self.stack[i]);
         }
+        println!("");
         print!("\tKEYS:\t\t");
         for i in 0..16 {
-            print!("{:#04X}: {}  ", i, self.keys[i] as u8);
+            print!("{:#03X}: {}  ", i, self.keys[i] as u8);
         }
         println!("");
 
@@ -315,7 +318,15 @@ impl CPU {
                 sprite_row[6] ^ self.gfx[(gfx_i + 6) % (GFX_ROWS * GFX_COLS)],
                 sprite_row[7] ^ self.gfx[(gfx_i + 7) % (GFX_ROWS * GFX_COLS)],
             ];
-            ret = ret || draw_row != sprite_row;
+            //ret = ret || draw_row != sprite_row;
+            if !ret {
+                for i in 0..draw_row.len() {
+                    if draw_row[i] && !sprite_row[i] {
+                        ret = true;
+                        break;
+                    }
+                }
+            }
             // set the pixels.
             // would look cleaner if gfx implemented as circular array,
             // eg    self.gfx[gfx_i..gfx_i + 8].copy_from_slice(&draw_row);
@@ -360,10 +371,12 @@ impl CPU {
     fn get_key(&mut self) {
         //FX07
         self.pc -= 2; //jump back to this same instruction as (poor) way of blocking
+        if self.ignore_keypress { return; }
         for i in 0..self.keys.len() {
             if self.keys[i] {
                 self.pc += 2; //jump to next instruction
                 *self.nibble2_reg() = i as u8;
+                self.ignore_keypress = true;
                 break;
             }
         }

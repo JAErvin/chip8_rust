@@ -10,7 +10,7 @@ use sdl2::render::WindowCanvas;
 use sdl2::rect::Rect;
 use std::time::Duration;
 
-const FPS: u64 = 60;
+const FPS: u64 = 600;
 const NANOS_PER_CYCLE: u64 = 1000000000 / FPS;
 const SCR_WIDTH: usize = 768;
 const SCR_HEIGHT: usize = 1536;
@@ -118,6 +118,7 @@ impl Emulator {
                 },
                 Event::KeyUp{keycode: Some(key),..} => {
                     if let Some(key_num) = select_key(key) {
+                        self.cpu.ignore_keypress = false;
                         self.cpu.set_key(key_num, false);
                     }
                 },
