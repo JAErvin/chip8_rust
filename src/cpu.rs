@@ -11,16 +11,16 @@ const FONT_LOC: usize = 0x50;
 const FONT_NUM_ROWS: usize = 5;
 
 #[inline]
-pub fn coords_to_index(x: u8, y: u8) -> usize { (y as usize * GFX_COLS) + x as usize }
+pub fn coords_to_index(x: u8, y: u8) -> usize {
+    (y as usize * GFX_COLS) + x as usize
+}
 #[inline]
-pub fn index_to_coords(i: u16) -> (usize, usize) { 
+pub fn index_to_coords(i: u16) -> (usize, usize) {
     (
-        i as usize % GFX_COLS as usize,       //x, 0-indexed
+        i as usize % GFX_COLS as usize,   //x, 0-indexed
         (i as usize / GFX_COLS as usize), //y, 0-indexed
     )
-
 }
-
 
 pub struct CPU {
     opcode: u16, // big-endian
@@ -35,26 +35,26 @@ pub struct CPU {
     delay_timer: u8,
     sound_timer: u8,
     pub ignore_keypress: bool, //hacky workaround?
-    //memory layout
-    //0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
-    //0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
-    //0x200-0xFFF - most chip8 programs (eti660 chip8 roms start at 0x600)
-    //
-    //TODO: Can (maybe?) use virtual addresses,
-    //    reducing memory space needed by eliminating 0x0..0x50 and 0xA1..0x1FF
+                               //memory layout
+                               //0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
+                               //0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
+                               //0x200-0xFFF - most chip8 programs (eti660 chip8 roms start at 0x600)
+                               //
+                               //TODO: Can (maybe?) use virtual addresses,
+                               //    reducing memory space needed by eliminating 0x0..0x50 and 0xA1..0x1FF
 
-    //gfx layout
-    //+--------------------+
-    //|(00,00)      (63,00)|
-    //|                    |
-    //|(00,31)      (63,31)|
-    //+--------------------+
+                               //gfx layout
+                               //+--------------------+
+                               //|(00,00)      (63,00)|
+                               //|                    |
+                               //|(00,31)      (63,31)|
+                               //+--------------------+
 
-    //sprites
-    //
-    // up to 15 bytes, each byte being a row of pixels
-    // sprites are XORed with gfx to turn on/off pixels
-    // font sprites for hex digits 0-F are located in the first section of mem
+                               //sprites
+                               //
+                               // up to 15 bytes, each byte being a row of pixels
+                               // sprites are XORed with gfx to turn on/off pixels
+                               // font sprites for hex digits 0-F are located in the first section of mem
 }
 
 impl CPU {
@@ -110,19 +110,33 @@ impl CPU {
     // could have been macros, but this will type check
 
     #[inline]
-    fn nibble2_usize(&self) -> usize { ((self.opcode & 0xF00) >> 8) as usize }
+    fn nibble2_usize(&self) -> usize {
+        ((self.opcode & 0xF00) >> 8) as usize
+    }
     #[inline]
-    fn nibble3_usize(&self) -> usize { ((self.opcode & 0xF0) >> 4) as usize }
+    fn nibble3_usize(&self) -> usize {
+        ((self.opcode & 0xF0) >> 4) as usize
+    }
     #[inline]
-    fn nibble2_reg(&mut self) -> &mut u8 { &mut self.regs[self.nibble2_usize()] as &mut u8 }
+    fn nibble2_reg(&mut self) -> &mut u8 {
+        &mut self.regs[self.nibble2_usize()] as &mut u8
+    }
     #[inline]
-    fn nibble3_reg(&mut self) -> &mut u8 { &mut self.regs[self.nibble3_usize()] as &mut u8 }
+    fn nibble3_reg(&mut self) -> &mut u8 {
+        &mut self.regs[self.nibble3_usize()] as &mut u8
+    }
     #[inline]
-    fn lower_4_val(&self) -> u8 { (self.opcode & 0xF) as u8 }
+    fn lower_4_val(&self) -> u8 {
+        (self.opcode & 0xF) as u8
+    }
     #[inline]
-    fn lower_8_val(&self) -> u8 { (self.opcode & 0xFF) as u8 }
+    fn lower_8_val(&self) -> u8 {
+        (self.opcode & 0xFF) as u8
+    }
     #[inline]
-    fn lower_12_val(&self) -> u16 { (self.opcode & 0xFFF) as u16 }
+    fn lower_12_val(&self) -> u16 {
+        (self.opcode & 0xFFF) as u16
+    }
     #[inline]
     fn fetch_sprite_row(&self, i: usize) -> [bool; 8] {
         // returns a byte at self.mem[i] as an array of bools
@@ -145,7 +159,9 @@ impl CPU {
     //
 
     #[inline]
-    fn clear_screen(&mut self) { self.gfx = [false; GFX_ROWS * GFX_COLS]; } //0x00E0
+    fn clear_screen(&mut self) {
+        self.gfx = [false; GFX_ROWS * GFX_COLS];
+    } //0x00E0
     #[inline]
     fn subroutine_return(&mut self) {
         // 0x00EE
@@ -153,7 +169,9 @@ impl CPU {
         self.pc = self.stack[self.sp as usize];
     }
     #[inline]
-    fn jump(&mut self) { self.pc = self.lower_12_val(); } // 0x1NNN
+    fn jump(&mut self) {
+        self.pc = self.lower_12_val();
+    } // 0x1NNN
     #[inline]
     fn subroutine_call(&mut self) {
         // 0x2NNN
@@ -183,20 +201,30 @@ impl CPU {
         }
     }
     #[inline]
-    fn set_immediate(&mut self) { *self.nibble2_reg() = self.lower_8_val(); } //0x6XNN
+    fn set_immediate(&mut self) {
+        *self.nibble2_reg() = self.lower_8_val();
+    } //0x6XNN
     #[inline]
-    fn add_immediate(&mut self) { //0x7XNN
-        *self.nibble2_reg() =
-        self.nibble2_reg().wrapping_add(self.lower_8_val());
+    fn add_immediate(&mut self) {
+        //0x7XNN
+        *self.nibble2_reg() = self.nibble2_reg().wrapping_add(self.lower_8_val());
     }
     #[inline]
-    fn set(&mut self) { *self.nibble2_reg() = *self.nibble3_reg(); } //0x8XY0
+    fn set(&mut self) {
+        *self.nibble2_reg() = *self.nibble3_reg();
+    } //0x8XY0
     #[inline]
-    fn or(&mut self) { *self.nibble2_reg() |= *self.nibble3_reg(); } //0x8XY1
+    fn or(&mut self) {
+        *self.nibble2_reg() |= *self.nibble3_reg();
+    } //0x8XY1
     #[inline]
-    fn and(&mut self) { *self.nibble2_reg() &= *self.nibble3_reg(); } //0x8XY2
+    fn and(&mut self) {
+        *self.nibble2_reg() &= *self.nibble3_reg();
+    } //0x8XY2
     #[inline]
-    fn xor(&mut self) { *self.nibble2_reg() ^= *self.nibble3_reg(); } //0x8XY3
+    fn xor(&mut self) {
+        *self.nibble2_reg() ^= *self.nibble3_reg();
+    } //0x8XY3
     #[inline]
     fn add(&mut self) {
         //0x8XY4
@@ -239,9 +267,13 @@ impl CPU {
         }
     }
     #[inline]
-    fn set_i_immediate(&mut self) { self.i = self.lower_12_val(); } //ANNN
+    fn set_i_immediate(&mut self) {
+        self.i = self.lower_12_val();
+    } //ANNN
     #[inline]
-    fn jump_offset(&mut self) { self.pc = self.lower_12_val() + self.regs[0] as u16 } //0xBNNN
+    fn jump_offset(&mut self) {
+        self.pc = self.lower_12_val() + self.regs[0] as u16
+    } //0xBNNN
     #[inline]
     fn set_rand(&mut self) {
         //0xCNNN
@@ -302,7 +334,7 @@ impl CPU {
                 let (mut x, mut y) = index_to_coords(gfx_i as u16);
                 let overflowed = (x + i) / 64;
                 x = (x + i) % 64;
-                y = (y + overflowed) % GFX_ROWS; 
+                y = (y + overflowed) % GFX_ROWS;
                 let wrapped_i = coords_to_index(x as u8, y as u8);
                 self.gfx[wrapped_i] = draw_row[i];
             }
@@ -332,7 +364,9 @@ impl CPU {
     fn get_key(&mut self) {
         //FX07
         self.pc -= 2; //jump back to this same instruction as (poor) way of blocking
-        if self.ignore_keypress { return; }
+        if self.ignore_keypress {
+            return;
+        }
         for i in 0..self.keys.len() {
             if self.keys[i] {
                 self.pc += 2; //jump to next instruction
@@ -343,13 +377,21 @@ impl CPU {
         }
     }
     #[inline]
-    fn set_delay(&mut self) { self.delay_timer = *self.nibble2_reg(); } //0xFX15
+    fn set_delay(&mut self) {
+        self.delay_timer = *self.nibble2_reg();
+    } //0xFX15
     #[inline]
-    fn set_sound(&mut self) { self.sound_timer = *self.nibble2_reg(); } //0xFX18
+    fn set_sound(&mut self) {
+        self.sound_timer = *self.nibble2_reg();
+    } //0xFX18
     #[inline]
-    fn add_i(&mut self) { self.i = self.i.wrapping_add(*self.nibble2_reg() as u16); } //0xFX1E
+    fn add_i(&mut self) {
+        self.i = self.i.wrapping_add(*self.nibble2_reg() as u16);
+    } //0xFX1E
     #[inline]
-    fn get_char(&mut self) { self.i = FONT_LOC as u16 + (*self.nibble2_reg() * FONT_NUM_ROWS as u8) as u16; } //0xFX29
+    fn get_char(&mut self) {
+        self.i = FONT_LOC as u16 + (*self.nibble2_reg() * FONT_NUM_ROWS as u8) as u16;
+    } //0xFX29
     #[inline]
     fn store_bcd(&mut self) {
         //0xFX33
@@ -377,7 +419,7 @@ impl CPU {
         match self.opcode {
             0x00E0 => self.clear_screen(),
             0x00EE => self.subroutine_return(),
-            0x0000..=0x0FFF => self.jump(),//temp. good enough for now?
+            0x0000..=0x0FFF => self.jump(), //temp. good enough for now?
             0x1000..=0x1FFF => self.jump(),
             0x2000..=0x2FFF => self.subroutine_call(),
             0x3000..=0x3FFF => self.skip_if(),
@@ -452,7 +494,9 @@ impl CPU {
     pub fn just_drew(&mut self) -> bool {
         (self.opcode & 0xF000) >> 12 == 0xD
     }
-    pub fn should_play_sound(&self) -> bool { self.sound_timer > 0 }
+    pub fn should_play_sound(&self) -> bool {
+        self.sound_timer > 0
+    }
 
     // temp until better method implemented
     pub fn set_key(&mut self, key: usize, state: bool) {
@@ -472,5 +516,7 @@ impl CPU {
         self.mem[ROM_START..(ROM_START + rom.len())].copy_from_slice(rom);
     }
 
-    pub fn get_gfx(&self) -> [bool; GFX_ROWS * GFX_COLS] { self.gfx }
+    pub fn get_gfx(&self) -> [bool; GFX_ROWS * GFX_COLS] {
+        self.gfx
+    }
 }
