@@ -107,6 +107,7 @@ impl CPU {
             (self.mem[self.pc as usize] as u16) << 8 | (self.mem[(self.pc + 1) as usize] as u16);
         self.pc += 2;
         
+        /*
         println!("AFTER FETCH: ");
         println!("\tOPCODE:\t\t{:#06X} ({:#018b}) @<{:#018X}>", self.opcode, self.opcode, self.pc - 2);
         println!("\tSP:\t\t{}", self.sp);
@@ -126,6 +127,7 @@ impl CPU {
             print!("{:#03X}: {}  ", i, self.keys[i] as u8);
         }
         println!("");
+        */
 
     }
 
@@ -494,6 +496,7 @@ impl CPU {
     pub fn just_drew(&mut self) -> bool {
         (self.opcode & 0xF000) >> 12 == 0xD
     }
+    pub fn should_play_sound(&self) -> bool { self.sound_timer > 0 }
 
     // temp until better method implemented
     pub fn set_key(&mut self, key: usize, state: bool) {
@@ -507,10 +510,6 @@ impl CPU {
     pub fn perform_cycle(&mut self) {
         self.fetch();
         self.execute(); //also decodes
-        //self.update_timers();
-                        //update(timers)
-                        //render if drawflag set?
-                        //TODO: handle pc out of bounds?
     }
 
     pub fn load_rom(&mut self, rom: &[u8; ROM_SIZE]) {

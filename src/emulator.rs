@@ -4,6 +4,7 @@ use std::time::SystemTime;
 //use std::thread;
 
 use sdl2::pixels::Color;
+use sdl2::audio::{AudioCallback, AudioSpecDesired, AudioDevice};
 use sdl2::event::Event;
 use sdl2::keyboard::Keycode;
 use sdl2::render::WindowCanvas;
@@ -20,6 +21,7 @@ use std::time::Duration;
 
 const CPU_FREQ: u64 = 500; //adjust as desired. I saw this rate recommended
 const TIMER_FREQ: u64 = 60;
+const SPEC_FREQ: i32 = 44100;
 const SCR_WIDTH: usize = 768;
 const SCR_HEIGHT: usize = 1536;
 const PADDING: usize = 1;
@@ -52,7 +54,26 @@ fn select_key(keycode: Keycode) -> Option<usize> {
     
 }
 
+struct SquareWave {
+    phase_inc: f32,
+    phase: f32,
+    volume: f32
+}
+impl AudioCallback for SquareWave {
+    type Channel = f32;
 
+    fn callback(&mut self, out: &mut [f32]) {
+        // Generate a square wave
+        for x in out.iter_mut() {
+            *x = if self.phase <= 0.5 {
+                self.volume
+            } else {
+                -self.volume
+            };
+            self.phase = (self.phase + self.phase_inc) % 1.0;
+        }
+    }
+}
 
 pub struct Emulator {
     cpu: cpu::CPU,
@@ -61,6 +82,7 @@ pub struct Emulator {
     //window: sdl2::video::Window,
     canvas: WindowCanvas,
     event_pump: sdl2::EventPump,
+    audio: AudioDevice<SquareWave>,
 }
 
 #[allow(dead_code)]
@@ -76,6 +98,24 @@ impl Emulator {
             .build()
             .unwrap();
         let event_pump = sdl_context.event_pump().unwrap();
+        let spec = AudioSpecDesired{
+            freq: Some(SPEC_FREQ),
+            channels: Some(1),
+            samples: None,
+        };
+        let audio = sdl_context.audio().unwrap()
+            .open_playback(
+                None,
+                &spec,
+                |spec| {
+                    SquareWave {
+                        phase_inc: 440.0 / spec.freq as f32,
+                        phase: 0.0,
+                        volume: 0.25,
+                    }
+                }
+                )
+                .unwrap();
         Emulator{
             cpu: cpu::CPU::new(),
             //sdl_context: sdl_context,
@@ -83,6 +123,7 @@ impl Emulator {
             //window: window,
             canvas: canvas,
             event_pump: event_pump,
+            audio: audio,
         }
     }
 
@@ -139,13 +180,14 @@ impl Emulator {
 
 
     pub fn run(&mut self, rom: &[u8; cpu::ROM_SIZE]) {
-        //TODO: adjust sleep time on-the-fly based on actual fps
+        //TODO: move all cycling into cpu; use callbacks for drawing, sound, input, etc
         self.cpu.load_rom(rom);
         self.draw(); //init
         let mut nanos_per_cycle = 1000000000 / CPU_FREQ;
         let mut cycles = 0;
         let mut time = SystemTime::now();
         let mut last_timer_update = time.clone();
+        let mut sound_playing = false;
         loop {
             //do some time keeping
             let cycle_start = SystemTime::now();
@@ -176,6 +218,16 @@ impl Emulator {
             if self.cpu.just_drew() {
                 self.draw();
             }
+            if sound_playing ^ self.cpu.should_play_sound() {
+                sound_playing = !sound_playing;
+                if sound_playing { 
+                    self.audio.resume();
+                }
+                else { 
+                    self.audio.pause();
+                }
+            }
+
 
             let sleep_time = Duration::from_nanos(nanos_per_cycle)
                 .checked_sub(SystemTime::now()
@@ -183,7 +235,6 @@ impl Emulator {
                     .unwrap()
                 );
             if let Some(pos_sleep_time) = sleep_time {
-                //println!("SLEEPING: {}", pos_sleep_time.as_nanos());
                 std::thread::sleep(pos_sleep_time);
             }
         }
