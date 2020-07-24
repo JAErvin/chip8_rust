@@ -18,8 +18,8 @@ use std::time::Duration;
 //keep cpu-cycle counter for timers
 //calculate timer cpu-cycles/timer tick based off currently set target cpu frequency
 
-const FPS: u64 = 60;
-const NANOS_PER_CYCLE: u64 = 1000000000 / FPS;
+const CPU_FREQ: u64 = 500; //adjust as desired. I saw this rate recommended
+const TIMER_FREQ: u64 = 60;
 const SCR_WIDTH: usize = 768;
 const SCR_HEIGHT: usize = 1536;
 const PADDING: usize = 1;
@@ -142,19 +142,31 @@ impl Emulator {
         //TODO: adjust sleep time on-the-fly based on actual fps
         self.cpu.load_rom(rom);
         self.draw(); //init
-        let mut frames = 0;
+        let mut nanos_per_cycle = 1000000000 / CPU_FREQ;
+        let mut cycles = 0;
         let mut time = SystemTime::now();
+        let mut last_timer_update = time.clone();
         loop {
+            //do some time keeping
             let cycle_start = SystemTime::now();
-            frames = (frames + 1) % 60;
-            if frames == 0 {
-                let actual = cycle_start.duration_since(time);
-                println!("time for 60 frames: {}", 
-                    match actual {
-                        Ok(t) => t.as_secs_f32(),
-                        _ => 0.0 ,
-                    });
+            cycles = (cycles + 1) % CPU_FREQ;
+            if cycles == 0 { //calculate seconds per CPU_FREQ
+                let actual_time = match cycle_start.duration_since(time) {
+                    Ok(t) => t.as_secs_f32(),
+                    _ => 0.0,
+                };
+                println!("time for target ({}) cycles: {}    (sleep == {})", CPU_FREQ, actual_time, nanos_per_cycle);
                 time = cycle_start;
+                // update nanos to try to more closely match
+                let actual_nanos = (actual_time * 1000000000 as f32) as u64 / CPU_FREQ;
+                let adjustment : i64 = ((1000000000 / CPU_FREQ) as i64 - actual_nanos as i64) / 2;
+                println!("actual_nanos: {}\nadjustment: {}", actual_nanos, adjustment);
+                nanos_per_cycle = (nanos_per_cycle as i64 + adjustment) as u64;
+            }
+            //update timers
+            if last_timer_update.elapsed().unwrap() >= Duration::from_nanos(1000000000 / TIMER_FREQ) {
+                self.cpu.update_timers();
+                last_timer_update = cycle_start.clone();
             }
 
 
@@ -165,8 +177,7 @@ impl Emulator {
                 self.draw();
             }
 
-
-            let sleep_time = Duration::from_nanos(NANOS_PER_CYCLE)
+            let sleep_time = Duration::from_nanos(nanos_per_cycle)
                 .checked_sub(SystemTime::now()
                     .duration_since(cycle_start)
                     .unwrap()
@@ -175,7 +186,6 @@ impl Emulator {
                 //println!("SLEEPING: {}", pos_sleep_time.as_nanos());
                 std::thread::sleep(pos_sleep_time);
             }
-            //std::thread::sleep(Duration::from_millis(2000));
         }
     }
 }

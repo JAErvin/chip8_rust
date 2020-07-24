@@ -499,7 +499,7 @@ impl CPU {
     pub fn set_key(&mut self, key: usize, state: bool) {
         self.keys[key] = state;
     }
-    fn update_timers(&mut self) {
+    pub fn update_timers(&mut self) {
         self.delay_timer = self.delay_timer.saturating_sub(1);
         self.sound_timer = self.sound_timer.saturating_sub(1);
     }
@@ -507,7 +507,7 @@ impl CPU {
     pub fn perform_cycle(&mut self) {
         self.fetch();
         self.execute(); //also decodes
-        self.update_timers();
+        //self.update_timers();
                         //update(timers)
                         //render if drawflag set?
                         //TODO: handle pc out of bounds?

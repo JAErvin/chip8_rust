@@ -18,7 +18,7 @@ fn read_rom(path: String) -> [u8; cpu::ROM_SIZE] {
 fn main() {
     let args: Vec<String> = env::args().collect();
     if args.len() != 2 {
-        println!("UsageL ./{} path/to/rom", args[0]);
+        println!("Usage: {} path/to/rom", args[0]);
         return;
     }
     let rom_file = args[1].to_string();
