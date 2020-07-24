@@ -57,7 +57,6 @@ pub struct CPU {
     // font sprites for hex digits 0-F are located in the first section of mem
 }
 
-#[allow(dead_code)]
 impl CPU {
     pub fn new() -> CPU {
         let mut cpu = CPU {
@@ -100,35 +99,11 @@ impl CPU {
         ];
         self.mem[FONT_LOC..FONT_LOC + (FONT_NUM_ROWS * 16)].copy_from_slice(&CHARS);
     }
-    pub fn set_keys(&mut self, keys: [bool; 16]) { self.keys = keys; }
 
     fn fetch(&mut self) {
         self.opcode =
             (self.mem[self.pc as usize] as u16) << 8 | (self.mem[(self.pc + 1) as usize] as u16);
         self.pc += 2;
-        
-        /*
-        println!("AFTER FETCH: ");
-        println!("\tOPCODE:\t\t{:#06X} ({:#018b}) @<{:#018X}>", self.opcode, self.opcode, self.pc - 2);
-        println!("\tSP:\t\t{}", self.sp);
-        println!("\tI:\t\t{}", self.i);
-        print!("\tREGS:\t\t");
-        for i in 0..16 {
-            print!("{}: {}  ", i, self.regs[i]);
-        }
-        println!("");
-        print!("\tSTACK:\t\t");
-        for i in 0..16 {
-            print!("{}: {}  ", i, self.stack[i]);
-        }
-        println!("");
-        print!("\tKEYS:\t\t");
-        for i in 0..16 {
-            print!("{:#03X}: {}  ", i, self.keys[i] as u8);
-        }
-        println!("");
-        */
-
     }
 
     // helper functions that should help with readability
@@ -152,15 +127,6 @@ impl CPU {
     fn fetch_sprite_row(&self, i: usize) -> [bool; 8] {
         // returns a byte at self.mem[i] as an array of bools
         [
-//            (self.mem[i] & 0b10000000) >> 7 == 0b10000000,
-//            (self.mem[i] & 0b01000000) >> 6 == 0b01000000,
-//            (self.mem[i] & 0b00100000) >> 5 == 0b00100000,
-//            (self.mem[i] & 0b00010000) >> 4 == 0b00010000,
-//            (self.mem[i] & 0b00001000) >> 3 == 0b00001000,
-//            (self.mem[i] & 0b00000100) >> 2 == 0b00000100,
-//            (self.mem[i] & 0b00000010) >> 1 == 0b00000010,
-//             self.mem[i] & 0b00000001 == 0b00000001,
-
             (self.mem[i] & 0b10000000) == 0b10000000,
             (self.mem[i] & 0b01000000) == 0b01000000,
             (self.mem[i] & 0b00100000) == 0b00100000,
@@ -187,10 +153,7 @@ impl CPU {
         self.pc = self.stack[self.sp as usize];
     }
     #[inline]
-    fn jump(&mut self) {
-        //println!("jumping: {} --> {}", self.pc, self.lower_12_val());
-        self.pc = self.lower_12_val(); 
-    } // 0x1NNN
+    fn jump(&mut self) { self.pc = self.lower_12_val(); } // 0x1NNN
     #[inline]
     fn subroutine_call(&mut self) {
         // 0x2NNN
@@ -292,9 +255,9 @@ impl CPU {
         // opcode = DXYN
         // Draws a sprite at coordinate (VX, VY) that has a width of 8 pixels and a height of N pixels.
         // Each row of 8 pixels is read as bit-coded starting from memory location I; I value doesn’t
-        // change after the execution of this instruction. As described above, VF is set to 1 if any screen
-        // pixels are flipped from set to unset when the sprite is drawn, and to 0 if that doesn’t happen
-        // TODO: sprites should wrap around... maybe... per 1 comment I saw.
+        // change after the execution of this instruction. As described above, VF is set to 1 if any
+        // pixels are flipped from set to unset when the sprite is drawn, and to 0 if that doesn’t happen.
+        // pixels wrap around.
         let vx: u8 = *self.nibble2_reg();
         let vy: u8 = *self.nibble3_reg();
         let height: u8 = self.lower_4_val();
@@ -306,7 +269,6 @@ impl CPU {
             panic!("cant draw sprite... vy out of bounds");
         }
         let mut mem_i = self.i as usize; // dont modify i
-        //println!("drawing @({},{}) w/ sprite at <{}>, height: {}", vx, vy, mem_i, height);
         for row in vy..vy + height {
             let gfx_i = coords_to_index(vx, row);
             let sprite_row: [bool; 8] = self.fetch_sprite_row(mem_i);
@@ -321,8 +283,6 @@ impl CPU {
                 sprite_row[6] ^ self.gfx[(gfx_i + 6) % (GFX_ROWS * GFX_COLS)],
                 sprite_row[7] ^ self.gfx[(gfx_i + 7) % (GFX_ROWS * GFX_COLS)],
             ];
-            //println!("[{},{},{},{},{},{},{},{}]", draw_row[0], draw_row[1], draw_row[2], draw_row[3], draw_row[4], draw_row[5],draw_row[6], draw_row[7]);
-            //ret = ret || draw_row != sprite_row;
             if !ret {
                 for i in 0..draw_row.len() {
                     if !draw_row[i] && sprite_row[i] {
@@ -342,12 +302,9 @@ impl CPU {
                 let (mut x, mut y) = index_to_coords(gfx_i as u16);
                 let overflowed = (x + i) / 64;
                 x = (x + i) % 64;
-                y += overflowed;
+                y = (y + overflowed) % GFX_ROWS; 
                 let wrapped_i = coords_to_index(x as u8, y as u8);
-                //println!("X,Y => i == ({},{}) => {}", x , y , wrapped_i);
-                if wrapped_i < GFX_COLS * GFX_ROWS { //temp fix?
-                    self.gfx[wrapped_i] = draw_row[i];
-                }
+                self.gfx[wrapped_i] = draw_row[i];
             }
         }
         self.regs[15] = ret as u8;
@@ -420,7 +377,6 @@ impl CPU {
         match self.opcode {
             0x00E0 => self.clear_screen(),
             0x00EE => self.subroutine_return(),
-            //0x0000..=0x0FFF => panic!("0x0NNN not implemented (yet?)."), //TODO: call machine code routine; check diff w/ 0x2NNN
             0x0000..=0x0FFF => self.jump(),//temp. good enough for now?
             0x1000..=0x1FFF => self.jump(),
             0x2000..=0x2FFF => self.subroutine_call(),

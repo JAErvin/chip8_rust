@@ -77,9 +77,6 @@ impl AudioCallback for SquareWave {
 
 pub struct Emulator {
     cpu: cpu::CPU,
-    //sdl_context: sdl2::Sdl,
-    //video_subsystem: sdl2::VideoSubsystem,
-    //window: sdl2::video::Window,
     canvas: WindowCanvas,
     event_pump: sdl2::EventPump,
     audio: AudioDevice<SquareWave>,
@@ -118,9 +115,6 @@ impl Emulator {
                 .unwrap();
         Emulator{
             cpu: cpu::CPU::new(),
-            //sdl_context: sdl_context,
-            //video_subsystem: video_subsystem,
-            //window: window,
             canvas: canvas,
             event_pump: event_pump,
             audio: audio,
