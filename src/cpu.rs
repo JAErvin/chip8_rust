@@ -290,19 +290,14 @@ impl CPU {
         // change after the execution of this instruction. As described above, VF is set to 1 if any
         // pixels are flipped from set to unset when the sprite is drawn, and to 0 if that doesn’t happen.
         // pixels wrap around.
-        let vx: u8 = *self.nibble2_reg();
-        let vy: u8 = *self.nibble3_reg();
+        let vx: u8 = *self.nibble2_reg() % GFX_COLS as u8;
+        let vy: u8 = *self.nibble3_reg() % GFX_ROWS as u8;
         let height: u8 = self.lower_4_val();
         let mut ret = false;
-        if vx > (GFX_COLS - 1) as u8 {
-            panic!("cant draw sprite... vx out of bounds");
-        }
-        if vy > (GFX_ROWS - 1) as u8 {
-            panic!("cant draw sprite... vy out of bounds");
-        }
         let mut mem_i = self.i as usize; // dont modify i
         for row in vy..vy + height {
-            let gfx_i = coords_to_index(vx, row);
+            let wrapped_y = row % GFX_ROWS as u8;
+            let gfx_i = coords_to_index(vx, wrapped_y);
             let sprite_row: [bool; 8] = self.fetch_sprite_row(mem_i);
             mem_i += 1; //prep for next row
             let draw_row: [bool; 8] = [
