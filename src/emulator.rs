@@ -15,11 +15,14 @@ use std::time::Duration;
 const CPU_FREQ: u64 = 500; //adjust as desired. I saw this rate recommended
 const TIMER_FREQ: u64 = 60;
 const SPEC_FREQ: i32 = 44100;
-const SCR_WIDTH: usize = 768;
-const SCR_HEIGHT: usize = 1536;
-const PADDING: usize = 1;
-const PX_WIDTH: usize = 22; //+ 2*padding==24
-const PX_HEIGHT: usize = 10; //+ 2*padding==12
+const SCR_WIDTH: usize = cpu::GFX_COLS * ((2 * PADDING) + PX_WIDTH);
+const SCR_HEIGHT: usize = cpu::GFX_ROWS * ((2 * PADDING) + PX_WIDTH);
+//const PADDING: usize = 1;
+//const PX_WIDTH: usize = 22; //+ 2*padding==24
+//const PX_HEIGHT: usize = 10; //+ 2*padding==12
+const PADDING: usize = 0;
+const PX_WIDTH: usize = 12; //+ 2*padding==24
+const PX_HEIGHT: usize = 12; //+ 2*padding==12
 
 const BG_COLOR: Color = Color::RGB(0, 0, 0);
 const FG_COLOR: Color = Color::RGB(128, 128, 128);
@@ -81,7 +84,7 @@ impl Emulator {
         let sdl_context = sdl2::init().unwrap();
         let video_subsystem = sdl_context.video().unwrap();
         let window = video_subsystem
-            .window("chip8", SCR_HEIGHT as u32, SCR_WIDTH as u32)
+            .window("chip8", SCR_WIDTH as u32, SCR_HEIGHT as u32)
             .position_centered()
             .build()
             .unwrap();
@@ -116,18 +119,15 @@ impl Emulator {
         self.canvas.set_draw_color(FG_COLOR);
         let rects_to_draw = self.cpu.get_gfx();
         for i in 0..rects_to_draw.len() {
-            //print!("{}", if rects_to_draw[i] {"T "} else { "F "});
-            //if i == cpu::GFX_COLS { println!(""); }
             if rects_to_draw[i] {
-                //println!("PIXEL!!");
                 let (x, y) = cpu::index_to_coords(i as u16);
                 // actual width = 2x padding + px_width
                 // actual height = 2x padding + px_height
                 rects.push(Rect::new(
-                    (PADDING + (x * (PADDING + PX_WIDTH + PADDING))) as i32,
-                    (PADDING + (y * (PADDING + PX_HEIGHT + PADDING))) as i32,
-                    (PADDING + PX_WIDTH + PADDING) as u32,
-                    (PADDING + PX_HEIGHT + PADDING) as u32,
+                    (x * (PADDING + PX_WIDTH + PADDING) + PADDING) as i32,
+                    (y * (PADDING + PX_HEIGHT + PADDING) + PADDING) as i32,
+                    PX_WIDTH as u32,
+                    PX_HEIGHT as u32,
                 ));
             }
         }
