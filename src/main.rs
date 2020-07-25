@@ -6,7 +6,7 @@ use std::{env, fs};
 fn read_rom(path: String) -> [u8; cpu::ROM_SIZE] {
     let vector: Vec<u8> = fs::read(&path).unwrap();
     let mut rom: [u8; cpu::ROM_SIZE] = [0u8; cpu::ROM_SIZE];
-    rom[0..vector.len()].copy_from_slice(&vector[0..]);
+    rom[0..vector.len()].copy_from_slice(&vector);
     rom
 }
 

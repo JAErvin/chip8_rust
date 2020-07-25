@@ -16,7 +16,7 @@ const CPU_FREQ: u64 = 500; //adjust as desired. I saw this rate recommended
 const TIMER_FREQ: u64 = 60;
 const SPEC_FREQ: i32 = 44100;
 const SCR_WIDTH: usize = cpu::GFX_COLS * ((2 * PADDING) + PX_WIDTH);
-const SCR_HEIGHT: usize = cpu::GFX_ROWS * ((2 * PADDING) + PX_WIDTH);
+const SCR_HEIGHT: usize = cpu::GFX_ROWS * ((2 * PADDING) + PX_HEIGHT);
 //const PADDING: usize = 1;
 //const PX_WIDTH: usize = 22; //+ 2*padding==24
 //const PX_HEIGHT: usize = 10; //+ 2*padding==12
@@ -78,7 +78,6 @@ pub struct Emulator {
     audio: AudioDevice<SquareWave>,
 }
 
-#[allow(dead_code)]
 impl Emulator {
     pub fn new() -> Emulator {
         let sdl_context = sdl2::init().unwrap();
@@ -185,15 +184,10 @@ impl Emulator {
                     Ok(t) => t.as_secs_f32(),
                     _ => 0.0,
                 };
-                println!(
-                    "time for target ({}) cycles: {}    (sleep == {})",
-                    CPU_FREQ, actual_time, nanos_per_cycle
-                );
                 time = cycle_start;
                 // update nanos to try to more closely match
                 let actual_nanos = (actual_time * 1000000000 as f32) as u64 / CPU_FREQ;
                 let adjustment: i64 = ((1000000000 / CPU_FREQ) as i64 - actual_nanos as i64) / 2;
-                println!("actual_nanos: {}\nadjustment: {}", actual_nanos, adjustment);
                 nanos_per_cycle = (nanos_per_cycle as i64 + adjustment) as u64;
             }
             //update timers
