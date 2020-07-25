@@ -21,8 +21,8 @@ const SCR_HEIGHT: usize = cpu::GFX_ROWS * ((2 * PADDING) + PX_WIDTH);
 //const PX_WIDTH: usize = 22; //+ 2*padding==24
 //const PX_HEIGHT: usize = 10; //+ 2*padding==12
 const PADDING: usize = 0;
-const PX_WIDTH: usize = 12; //+ 2*padding==24
-const PX_HEIGHT: usize = 12; //+ 2*padding==12
+const PX_WIDTH: usize = 12;
+const PX_HEIGHT: usize = 12;
 
 const BG_COLOR: Color = Color::RGB(0, 0, 0);
 const FG_COLOR: Color = Color::RGB(128, 128, 128);

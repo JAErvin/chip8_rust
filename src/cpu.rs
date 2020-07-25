@@ -297,18 +297,17 @@ impl CPU {
         let mut mem_i = self.i as usize; // dont modify i
         for row in vy..vy + height {
             let wrapped_y = row % GFX_ROWS as u8;
-            let gfx_i = coords_to_index(vx, wrapped_y);
             let sprite_row: [bool; 8] = self.fetch_sprite_row(mem_i);
             mem_i += 1; //prep for next row
             let draw_row: [bool; 8] = [
-                sprite_row[0] ^ self.gfx[gfx_i % (GFX_ROWS * GFX_COLS)],
-                sprite_row[1] ^ self.gfx[(gfx_i + 1) % (GFX_ROWS * GFX_COLS)],
-                sprite_row[2] ^ self.gfx[(gfx_i + 2) % (GFX_ROWS * GFX_COLS)],
-                sprite_row[3] ^ self.gfx[(gfx_i + 3) % (GFX_ROWS * GFX_COLS)],
-                sprite_row[4] ^ self.gfx[(gfx_i + 4) % (GFX_ROWS * GFX_COLS)],
-                sprite_row[5] ^ self.gfx[(gfx_i + 5) % (GFX_ROWS * GFX_COLS)],
-                sprite_row[6] ^ self.gfx[(gfx_i + 6) % (GFX_ROWS * GFX_COLS)],
-                sprite_row[7] ^ self.gfx[(gfx_i + 7) % (GFX_ROWS * GFX_COLS)],
+                sprite_row[0] ^ self.gfx[coords_to_index(vx, wrapped_y)],
+                sprite_row[1] ^ self.gfx[coords_to_index((vx + 1) % GFX_COLS as u8, wrapped_y)],
+                sprite_row[2] ^ self.gfx[coords_to_index((vx + 2) % GFX_COLS as u8, wrapped_y)],
+                sprite_row[3] ^ self.gfx[coords_to_index((vx + 3) % GFX_COLS as u8, wrapped_y)],
+                sprite_row[4] ^ self.gfx[coords_to_index((vx + 4) % GFX_COLS as u8, wrapped_y)],
+                sprite_row[5] ^ self.gfx[coords_to_index((vx + 5) % GFX_COLS as u8, wrapped_y)],
+                sprite_row[6] ^ self.gfx[coords_to_index((vx + 6) % GFX_COLS as u8, wrapped_y)],
+                sprite_row[7] ^ self.gfx[coords_to_index((vx + 7) % GFX_COLS as u8, wrapped_y)],
             ];
             if !ret {
                 for i in 0..draw_row.len() {
@@ -325,13 +324,9 @@ impl CPU {
             // branching in the hopes that the compiler will optimize it better
             // than when trying to deal with the branch.
             // ...maybe will actually get around to testing that...
-            for i in 0..8 {
-                let (mut x, mut y) = index_to_coords(gfx_i as u16);
-                let overflowed = (x + i) / 64;
-                x = (x + i) % 64;
-                y = (y + overflowed) % GFX_ROWS;
-                let wrapped_i = coords_to_index(x as u8, y as u8);
-                self.gfx[wrapped_i] = draw_row[i];
+            for col in 0..8 {
+                let wrapped_i = coords_to_index((vx + col) % GFX_COLS as u8, wrapped_y);
+                self.gfx[wrapped_i] = draw_row[col as usize];
             }
         }
         self.regs[15] = ret as u8;
